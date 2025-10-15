@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLE 设备扫描器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #scanDevice {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        #scanDevice:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #clearList {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        #clearList:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .status.warning {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .devices-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .devices-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .devices-header h2 {
+            color: #667eea;
+            font-size: 1.8em;
+        }
+
+        .device-count {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        #devicesList {
+            display: grid;
+            gap: 15px;
+        }
+
+        .device-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            border-left: 5px solid #667eea;
+        }
+
+        .device-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .device-card.watching {
+            border-left-color: #4caf50;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .device-name {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .device-rssi {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        .rssi-strong {
+            background: #4caf50;
+            color: white;
+        }
+
+        .rssi-medium {
+            background: #ff9800;
+            color: white;
+        }
+
+        .rssi-weak {
+            background: #f44336;
+            color: white;
+        }
+
+
+        .device-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-watch {
+            flex: 1;
+            padding: 10px 20px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-watch:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-watch:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-stop-watch {
+            flex: 1;
+            padding: 10px 20px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-stop-watch:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+
+        .watching-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            background: #4caf50;
+            color: white;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .raw-hex-section,
+        .parsed-data-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .parsed-data-section {
+            border-left-color: #4caf50;
+        }
+
+        .section-header {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 1.05em;
+        }
+
+        .btn-copy {
+            padding: 5px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .btn-copy:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+
+        .btn-copy:active {
+            transform: scale(0.95);
+        }
+
+        .raw-hex-content,
+        .parsed-data-content {
+            background: rgba(255,255,255,0.9);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.8;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .raw-hex-content {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #495057;
+        }
+
+        .raw-hex-content::-webkit-scrollbar,
+        .parsed-data-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .raw-hex-content::-webkit-scrollbar-track,
+        .parsed-data-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .raw-hex-content::-webkit-scrollbar-thumb,
+        .parsed-data-content::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+
+        .raw-hex-content::-webkit-scrollbar-thumb:hover,
+        .parsed-data-content::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .note {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .note strong {
+            color: #856404;
+        }
+
+        .note.success {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .note.success strong {
+            color: #155724;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                min-width: 100%;
+            }
+
+            .device-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+
+        .timestamp {
+            font-size: 0.85em;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 BLE 设备扫描器</h1>
+            <p>使用 Web Bluetooth API 扫描附近的蓝牙低功耗设备</p>
+        </div>
+
+        <div class="controls">
+            <div class="button-group">
+                <button id="scanDevice">添加设备</button>
+                <button id="clearList">清除列表</button>
+            </div>
+            <div id="status" class="status info">
+                点击"添加设备"以搜索并添加 BLE 设备
+            </div>
+            <div class="note success">
+                <strong>💡 使用说明：</strong>
+                点击"添加设备"选择要监听的 BLE 设备，查看原始十六进制数据和解析后的信息。
+            </div>
+        </div>
+
+        <div class="devices-container">
+            <div class="devices-header">
+                <h2>监听的设备</h2>
+                <div class="device-count">设备数: <span id="deviceCount">0</span></div>
+            </div>
+            <div id="devicesList">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v20M17 7l-5-5-5 5M17 17l-5 5-5-5"/>
+                    </svg>
+                    <h3>暂无设备</h3>
+                    <p>点击"添加设备"以添加要监听的 BLE 设备</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const devices = new Map();
+        let deviceWatchers = new Map();
+
+        const scanButton = document.getElementById('scanDevice');
+        const clearButton = document.getElementById('clearList');
+        const statusDiv = document.getElementById('status');
+        const devicesList = document.getElementById('devicesList');
+        const deviceCount = document.getElementById('deviceCount');
+
+        // Update status message
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Get RSSI class for styling
+        function getRssiClass(rssi) {
+            if (!rssi) return 'rssi-weak';
+            if (rssi >= -60) return 'rssi-strong';
+            if (rssi >= -80) return 'rssi-medium';
+            return 'rssi-weak';
+        }
+
+        // Convert ArrayBuffer to hex string
+        function bufferToHex(buffer) {
+            if (!buffer) return '';
+            return Array.from(new Uint8Array(buffer))
+                .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                .join(' ');
+        }
+
+        // Convert ArrayBuffer to hex string with length
+        function bufferToHexWithLength(buffer) {
+            if (!buffer) return 'N/A';
+            const bytes = new Uint8Array(buffer);
+            const hex = Array.from(bytes)
+                .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                .join(' ');
+            return `[${bytes.length} bytes] ${hex}`;
+        }
+
+        // Convert ArrayBuffer to formatted hex dump (16 bytes per line)
+        function bufferToHexDump(buffer) {
+            if (!buffer) return '';
+            const bytes = new Uint8Array(buffer);
+            const lines = [];
+            
+            for (let i = 0; i < bytes.length; i += 16) {
+                const chunk = bytes.slice(i, i + 16);
+                const hex = Array.from(chunk)
+                    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                    .join(' ');
+                const ascii = Array.from(chunk)
+                    .map(b => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.')
+                    .join('');
+                const offset = i.toString(16).padStart(4, '0').toUpperCase();
+                lines.push(`${offset}: ${hex.padEnd(47, ' ')} | ${ascii}`);
+            }
+            return lines.join('\n');
+        }
+
+        // Convert string to hex
+        function stringToHex(str) {
+            if (!str) return '';
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(str);
+            return Array.from(bytes)
+                .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                .join(' ');
+        }
+
+        // Get raw hex data from device
+        function getRawHexData(device) {
+            const rawParts = [];
+            
+            // Device Name
+            if (device.name) {
+                rawParts.push(`[Device Name]\n${stringToHex(device.name)}`);
+            }
+            
+            // Manufacturer Data
+            if (device.manufacturerData && device.manufacturerData.size > 0) {
+                for (const [key, value] of device.manufacturerData) {
+                    const companyIdHex = key.toString(16).padStart(4, '0').toUpperCase();
+                    rawParts.push(`[Manufacturer Data - Company ID: 0x${companyIdHex}]\n${bufferToHex(value)}`);
+                }
+            }
+            
+            // Service Data
+            if (device.serviceData && device.serviceData.size > 0) {
+                for (const [uuid, value] of device.serviceData) {
+                    rawParts.push(`[Service Data - UUID: ${uuid}]\n${bufferToHex(value)}`);
+                }
+            }
+            
+            return rawParts.length > 0 ? rawParts.join('\n\n') : '(无广播数据)';
+        }
+
+        // Parse manufacturer data
+        function parseManufacturerData(manufacturerData) {
+            if (!manufacturerData || manufacturerData.size === 0) return null;
+            
+            const result = [];
+            for (const [key, value] of manufacturerData) {
+                const bytes = new Uint8Array(value);
+                const companyId = key.toString(16).padStart(4, '0').toUpperCase();
+                
+                result.push(`Company ID: 0x${companyId} (${key})`);
+                result.push(`Length: ${bytes.length} bytes`);
+                
+                if (bytes.length > 8) {
+                    result.push(`\nHex Dump:\n${bufferToHexDump(value)}`);
+                }
+            }
+            return result.join('\n');
+        }
+
+        // Parse service data
+        function parseServiceData(serviceData) {
+            if (!serviceData || serviceData.size === 0) return null;
+            
+            const result = [];
+            for (const [uuid, value] of serviceData) {
+                const bytes = new Uint8Array(value);
+                
+                result.push(`UUID: ${uuid}`);
+                result.push(`Length: ${bytes.length} bytes`);
+                
+                if (bytes.length > 8) {
+                    result.push(`\nHex Dump:\n${bufferToHexDump(value)}`);
+                }
+            }
+            return result.join('\n\n');
+        }
+
+        // Parse service UUIDs
+        function parseServiceUUIDs(uuids) {
+            if (!uuids || uuids.length === 0) return null;
+            return uuids.join('\n');
+        }
+
+        // Format parsed advertisement data (only show fields that have data)
+        function formatParsedData(device) {
+            const parts = [];
+            
+            parts.push('=== 基本信息 ===\n');
+            
+            if (device.name) {
+                parts.push(`Device Name: ${device.name}`);
+            }
+            
+            parts.push(`Device ID: ${device.id || 'Unknown'}`);
+            
+            if (device.rssi !== undefined) {
+                parts.push(`RSSI: ${device.rssi} dBm`);
+            }
+            
+            if (device.txPower !== undefined) {
+                parts.push(`TX Power: ${device.txPower} dBm`);
+            }
+            
+            if (device.appearance !== undefined) {
+                parts.push(`Appearance: 0x${device.appearance.toString(16).toUpperCase().padStart(4, '0')}`);
+            }
+            
+            // Service UUIDs
+            const uuids = parseServiceUUIDs(device.uuids);
+            if (uuids) {
+                parts.push('\n=== Service UUIDs ===\n');
+                parts.push(uuids);
+            }
+            
+            // Manufacturer Data
+            const mfgData = parseManufacturerData(device.manufacturerData);
+            if (mfgData) {
+                parts.push('\n=== Manufacturer Data ===\n');
+                parts.push(mfgData);
+            }
+            
+            // Service Data
+            const svcData = parseServiceData(device.serviceData);
+            if (svcData) {
+                parts.push('\n=== Service Data ===\n');
+                parts.push(svcData);
+            }
+            
+            parts.push(`\n=== 更新时间 ===\n${new Date().toLocaleString()}`);
+            
+            return parts.join('\n');
+        }
+
+        // Create device card HTML
+        function createDeviceCard(device) {
+            const rssiClass = getRssiClass(device.rssi);
+            const rawHexData = getRawHexData(device);
+            const parsedData = formatParsedData(device);
+            const isWatching = device.watching;
+            
+            return `
+                <div class="device-card ${isWatching ? 'watching' : ''}" data-device-id="${device.id}">
+                    <div class="device-header">
+                        <div class="device-name">
+                            ${device.name || '未命名设备'}
+                            ${isWatching ? '<span class="watching-indicator">🔴 监听中</span>' : ''}
+                        </div>
+                        ${device.rssi !== undefined ? `
+                        <div class="device-rssi ${rssiClass}">
+                            <span>📶</span>
+                            <span>${device.rssi} dBm</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="device-actions">
+                        ${!isWatching ? `
+                            <button class="btn-watch" onclick="startWatchingDevice('${device.id}')">
+                                开始监听广播
+                            </button>
+                        ` : `
+                            <button class="btn-stop-watch" onclick="stopWatchingDevice('${device.id}')">
+                                停止监听
+                            </button>
+                        `}
+                    </div>
+                    
+                    <!-- Raw Hex Data -->
+                    <div class="raw-hex-section">
+                        <div class="section-header">
+                            🔢 原始十六进制数据
+                            <button class="btn-copy" onclick="copyRawHex('${device.id}')" title="复制原始数据">
+                                📋 复制
+                            </button>
+                        </div>
+                        <div class="raw-hex-content" id="raw-hex-${device.id}">${rawHexData}</div>
+                    </div>
+                    
+                    <!-- Parsed Data -->
+                    <div class="parsed-data-section">
+                        <div class="section-header">
+                            📊 解析后的数据
+                            <button class="btn-copy" onclick="copyParsedData('${device.id}')" title="复制解析数据">
+                                📋 复制
+                            </button>
+                        </div>
+                        <div class="parsed-data-content" id="parsed-data-${device.id}">${parsedData}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update devices list
+        function updateDevicesList() {
+            if (devices.size === 0) {
+                devicesList.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v20M17 7l-5-5-5 5M17 17l-5 5-5-5"/>
+                        </svg>
+                        <h3>暂无设备</h3>
+                        <p>点击"添加设备"以添加要监听的 BLE 设备</p>
+                    </div>
+                `;
+            } else {
+                const sortedDevices = Array.from(devices.values())
+                    .sort((a, b) => (b.rssi || -999) - (a.rssi || -999));
+                devicesList.innerHTML = sortedDevices.map(device => createDeviceCard(device)).join('');
+            }
+            deviceCount.textContent = devices.size;
+        }
+
+        // Handle advertisement received
+        function handleAdvertisement(event) {
+            console.log('📡 Advertisement received:', event);
+            console.log('Event details:', {
+                rssi: event.rssi,
+                txPower: event.txPower,
+                appearance: event.appearance,
+                uuids: event.uuids,
+                manufacturerData: event.manufacturerData,
+                serviceData: event.serviceData,
+                name: event.name,
+                device: event.device
+            });
+            
+            // Log all available properties
+            console.log('All event properties:', Object.keys(event));
+            
+            const device = event.device;
+            const existingDevice = devices.get(device.id);
+            
+            const deviceInfo = {
+                id: device.id,
+                name: device.name || existingDevice?.name || null,
+                rssi: event.rssi,
+                txPower: event.txPower,
+                appearance: event.appearance,
+                uuids: event.uuids || [],
+                manufacturerData: event.manufacturerData,
+                serviceData: event.serviceData,
+                timestamp: Date.now(),
+                watching: existingDevice?.watching || false,
+                bluetoothDevice: device,
+                // Store raw event for debugging
+                _rawEvent: event
+            };
+
+            console.log('Device info:', deviceInfo);
+            devices.set(device.id, deviceInfo);
+            updateDevicesList();
+        }
+
+        // Start watching device advertisements
+        async function startWatchingDevice(deviceId) {
+            try {
+                const deviceInfo = devices.get(deviceId);
+                if (!deviceInfo || !deviceInfo.bluetoothDevice) {
+                    console.error('Device not found or no Bluetooth device object');
+                    return;
+                }
+
+                const device = deviceInfo.bluetoothDevice;
+                
+                console.log('Starting to watch advertisements for:', device.name || device.id);
+                
+                // Check if watchAdvertisements is supported
+                if (!device.watchAdvertisements) {
+                    throw new Error('watchAdvertisements is not supported');
+                }
+
+                // Add event listener
+                device.addEventListener('advertisementreceived', handleAdvertisement);
+                
+                // Start watching
+                await device.watchAdvertisements();
+                
+                console.log('✓ Successfully started watching advertisements');
+                
+                // Update device status
+                deviceInfo.watching = true;
+                devices.set(deviceId, deviceInfo);
+                deviceWatchers.set(deviceId, device);
+                
+                updateDevicesList();
+                updateStatus(`✅ 开始监听设备: ${device.name || device.id}`, 'success');
+                
+            } catch (error) {
+                console.error('Error starting watch:', error);
+                updateStatus(`❌ 监听失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Stop watching device advertisements
+        function stopWatchingDevice(deviceId) {
+            try {
+                const device = deviceWatchers.get(deviceId);
+                if (device && device.watchingAdvertisements) {
+                    device.removeEventListener('advertisementreceived', handleAdvertisement);
+                    // Note: There's no official unwatchAdvertisements() method
+                    // The watching will stop when the device object is garbage collected
+                }
+                
+                const deviceInfo = devices.get(deviceId);
+                if (deviceInfo) {
+                    deviceInfo.watching = false;
+                    devices.set(deviceId, deviceInfo);
+                }
+                
+                deviceWatchers.delete(deviceId);
+                updateDevicesList();
+                updateStatus('⏸️ 已停止监听设备', 'warning');
+                
+            } catch (error) {
+                console.error('Error stopping watch:', error);
+                updateStatus(`❌ 停止监听失败: ${error.message}`, 'error');
+            }
+        }
+
+        // Copy raw hex data to clipboard
+        async function copyRawHex(deviceId) {
+            try {
+                const element = document.getElementById(`raw-hex-${deviceId}`);
+                if (!element) {
+                    console.error('Element not found');
+                    return;
+                }
+                
+                const text = element.textContent;
+                await navigator.clipboard.writeText(text);
+                
+                // Show feedback
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ 已复制';
+                button.style.background = '#4caf50';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                }, 2000);
+                
+                console.log('✓ Raw hex data copied to clipboard');
+                updateStatus('✅ 原始十六进制数据已复制到剪贴板', 'success');
+                
+            } catch (error) {
+                console.error('Copy failed:', error);
+                updateStatus('❌ 复制失败，请手动选择复制', 'error');
+            }
+        }
+
+        // Copy parsed data to clipboard
+        async function copyParsedData(deviceId) {
+            try {
+                const element = document.getElementById(`parsed-data-${deviceId}`);
+                if (!element) {
+                    console.error('Element not found');
+                    return;
+                }
+                
+                const text = element.textContent;
+                await navigator.clipboard.writeText(text);
+                
+                // Show feedback
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ 已复制';
+                button.style.background = '#4caf50';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                }, 2000);
+                
+                console.log('✓ Parsed data copied to clipboard');
+                updateStatus('✅ 解析数据已复制到剪贴板', 'success');
+                
+            } catch (error) {
+                console.error('Copy failed:', error);
+                updateStatus('❌ 复制失败，请手动选择复制', 'error');
+            }
+        }
+
+        // Make functions global for onclick handlers
+        window.startWatchingDevice = startWatchingDevice;
+        window.stopWatchingDevice = stopWatchingDevice;
+        window.copyRawHex = copyRawHex;
+        window.copyParsedData = copyParsedData;
+
+        // Scan for new device
+        async function scanForDevice() {
+            try {
+                console.log('🔍 Scanning for BLE devices...');
+                updateStatus('正在扫描设备...', 'info');
+                
+                // Check if the browser supports Web Bluetooth
+                if (!navigator.bluetooth) {
+                    throw new Error('您的浏览器不支持 Web Bluetooth API');
+                }
+
+                // Request device with all optional services
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['battery_service', 'device_information']
+                });
+
+                console.log('Selected device:', device);
+
+                // Create device info
+                const deviceInfo = {
+                    id: device.id,
+                    name: device.name || 'Unknown Device',
+                    rssi: undefined,
+                    txPower: undefined,
+                    appearance: undefined,
+                    uuids: [],
+                    manufacturerData: new Map(),
+                    serviceData: new Map(),
+                    timestamp: Date.now(),
+                    watching: false,
+                    bluetoothDevice: device
+                };
+
+                devices.set(device.id, deviceInfo);
+                updateDevicesList();
+                updateStatus(`✅ 已添加设备: ${device.name || device.id}。点击"开始监听广播"查看广播数据。`, 'success');
+
+                // Auto-start watching if supported
+                if (device.watchAdvertisements) {
+                    setTimeout(() => {
+                        startWatchingDevice(device.id);
+                    }, 500);
+                }
+
+            } catch (error) {
+                console.error('Scanning error:', error);
+                if (error.name === 'NotFoundError') {
+                    updateStatus('⚠️ 未选择设备', 'warning');
+                } else {
+                    updateStatus(`❌ 错误: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Clear devices list
+        function clearDevices() {
+            // Stop all watchers
+            for (const [deviceId, device] of deviceWatchers) {
+                if (device && device.watchingAdvertisements) {
+                    device.removeEventListener('advertisementreceived', handleAdvertisement);
+                }
+            }
+            
+            deviceWatchers.clear();
+            devices.clear();
+            updateDevicesList();
+            updateStatus('✅ 设备列表已清除', 'info');
+        }
+
+        // Event listeners
+        scanButton.addEventListener('click', scanForDevice);
+        clearButton.addEventListener('click', clearDevices);
+
+        // Check browser support on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('🔧 Checking Web Bluetooth support...');
+            console.log('navigator.bluetooth:', navigator.bluetooth);
+            
+            if (!navigator.bluetooth) {
+                updateStatus('❌ 您的浏览器不支持 Web Bluetooth API', 'error');
+                scanButton.disabled = true;
+            } else {
+                console.log('✓ Web Bluetooth is supported');
+                updateStatus('✅ 浏览器支持 Web Bluetooth，点击"添加设备"开始', 'success');
+            }
+        });
+    </script>
+</body>
+</html>
+
